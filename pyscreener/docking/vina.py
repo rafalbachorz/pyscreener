@@ -9,6 +9,11 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 from openbabel import pybel
 from tqdm import tqdm
 
+import os
+
+from rdkit import Chem
+from rdkit.Chem import AllChem
+
 from pyscreener.preprocessing import autobox
 from pyscreener.docking import Screener
 
@@ -68,8 +73,10 @@ class Vina(Screener):
         receptor_pdbqt : Optional[str]
             the filename of the resulting PDBQT file. None if preparation failed
         """
+        print(os.environ['PATH'])
         receptor_pdbqt = str(Path(receptor).with_suffix('.pdbqt'))
-        args = ['prepare_receptor', '-r', receptor, '-o', receptor_pdbqt]
+        args = ['prepare_receptor', '-r', receptor, '-A hydrogens', '-U nphs', '-o', receptor_pdbqt]
+
         try:
             sp.run(args, stderr=sp.PIPE, check=True)
         except sp.SubprocessError:
@@ -106,12 +113,36 @@ class Vina(Screener):
             path.mkdir()
         pdbqt = str(path / f'{name}.pdbqt')
 
-        mol = pybel.readstring(format='smi', string=smi)
-        mol.addh()
-        mol.make3D()
+        if 'rdkitOptimized' in kwargs:
+            rdkitOptimized = kwargs.get('rdkitOptimized')
+        else:
+            rdkitOptimized = False
+
+        print('!!!', rdkitOptimized)
+        if rdkitOptimized:
+            mol = Chem.MolFromSmiles(smi)
+            mol = Chem.AddHs(mol)
+            AllChem.EmbedMolecule(mol)
+            mol.GetNumConformers()
+            AllChem.UFFOptimizeMolecule(mol, maxIters=1000)
+            Chem.MolToMolFile(mol, 'tmptmptmp.mol')
+            mol = next(pybel.readfile(filename='tmptmptmp.mol', format='mol'))
+        else:
+            mol = pybel.readstring(format='smi', string=smi)
+            mol.addh()
+            mol.make3D(forcefield='uff', steps=5000)
+            
         mol.calccharges(model='gasteiger')
         mol.write(format='pdbqt', filename=pdbqt,
                   overwrite=True, opt={'h': None})
+
+        args = ['prepare_ligand', '-l', pdbqt]
+
+        try:
+            sp.run(args, stderr=sp.PIPE, check=True)
+        except sp.SubprocessError:
+            print(f'ERROR: failed to prepare ligand {pdbqt}', file=sys.stderr)
+            return None
 
         return smi, pdbqt
     

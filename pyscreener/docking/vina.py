@@ -178,7 +178,7 @@ class Vina(Screener):
             mol = Chem.AddHs(mol)
             AllChem.EmbedMolecule(mol)
             mol.GetNumConformers()
-            AllChem.UFFOptimizeMolecule(mol, maxIters=1000)
+            AllChem.UFFOptimizeMolecule(mol, maxIters=2000)
             Chem.MolToMolFile(mol, 'tmptmptmp.mol')
             mol = next(pybel.readfile(filename='tmptmptmp.mol', format='mol'))
         else:

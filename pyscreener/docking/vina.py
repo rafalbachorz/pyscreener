@@ -172,13 +172,12 @@ class Vina(Screener):
         else:
             rdkitOptimized = False
 
-        print('!!!', rdkitOptimized)
         if rdkitOptimized:
             mol = Chem.MolFromSmiles(smi)
             mol = Chem.AddHs(mol)
             AllChem.EmbedMolecule(mol)
             mol.GetNumConformers()
-            AllChem.UFFOptimizeMolecule(mol, maxIters=2000)
+            AllChem.UFFOptimizeMolecule(mol, maxIters=3000)
             Chem.MolToMolFile(mol, 'tmptmptmp.mol')
             mol = next(pybel.readfile(filename='tmptmptmp.mol', format='mol'))
         else:
@@ -199,7 +198,54 @@ class Vina(Screener):
             return None
 
         return smi, pdbqt
-    
+
+    @staticmethod
+    def prepare_from_rdkitmol(mol: Chem.rdchem.Mol, name: str = 'ligand',
+                         path: str = '.', **kwargs) -> Optional[Tuple]:
+        """Prepare an input ligand file from the RDkit mol object
+
+        Parameters
+        ----------
+        smi : str
+            the RDkit mol object of the ligand
+        name : Optional[str], default=None
+            the name of the ligand.
+        path : str, default='.'
+            the path under which the output PDBQT file should be written
+        **kwargs
+            additional and unused keyword arguments
+
+        Returns
+        -------
+        smi : str
+            the ligand's SMILES string
+        pdbqt : str
+            the prepared input file corresponding to the ligand
+        """
+        path = Path(path)
+        if not path.is_dir():
+            path.mkdir()
+        pdbqt = str(path / f'{name}.pdbqt')
+        smi = mol.GetProp('SMILES')
+
+        Chem.MolToMolFile(mol, 'tmptmptmp.mol')
+
+        molOB = next(pybel.readfile(filename='tmptmptmp.mol', format='mol'))
+        molOB.calccharges(model='gasteiger')
+        molOB.write(format='pdbqt', filename=pdbqt,
+                    overwrite=True, opt={'h': None})
+        args = ['prepare_ligand', '-l', pdbqt]
+
+        try:
+            sp.run(args, stderr=sp.PIPE, check=True)
+        except sp.SubprocessError:
+            print(f'ERROR: failed to prepare ligand {pdbqt}', file=sys.stderr)
+            return None
+
+        
+        return smi, pdbqt
+
+
     @staticmethod
     def prepare_from_file(filepath: str, use_3d: bool = False,
                           name: Optional[str] = None, path: str = '.', 

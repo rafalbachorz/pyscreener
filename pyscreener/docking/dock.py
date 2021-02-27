@@ -161,12 +161,13 @@ class DOCK(Screener):
         """
         rec_mol2 = ucsfdock_prep.prepare_mol2(receptor, self.in_path)
         rec_pdb = ucsfdock_prep.prepare_pdb(receptor, self.in_path)
+
         if rec_mol2 is None or rec_pdb is None:
             return None
-
         rec_dms = ucsfdock_prep.prepare_dms(
             rec_pdb, self.probe_radius, self.in_path
         )
+
         if rec_dms is None:
             return None
 
@@ -186,12 +187,14 @@ class DOCK(Screener):
             rec_sph, self.center, self.size,
             self.enclose_spheres, self.buffer, self.in_path
         )
+
         if rec_box is None:
             return None
 
         grid_prefix = ucsfdock_prep.prepare_grid(
             rec_mol2, rec_box, self.in_path
         )
+
         if grid_prefix is None:
             return None
 
@@ -493,6 +496,9 @@ class DOCK(Screener):
         infile = in_path / f'{name}.in'
         outfile_prefix = out_path / name
 
+        ligan_file_local = in_path / ligand_file
+        sph_file_local = in_path / sph_file
+        grid_prefix_local = in_path / grid_prefix
         with open(infile, 'w') as fid:
             fid.write('conformer_search_type flex\n')
             fid.write('write_fragment_libraries no\n')
@@ -512,7 +518,7 @@ class DOCK(Screener):
             fid.write('internal_energy_rep_exp 12\n')
             fid.write('internal_energy_cutoff 100.0\n')
 
-            fid.write(f'ligand_atom_file {ligand_file}\n')
+            fid.write(f'ligand_atom_file {ligan_file_local}\n')
             fid.write('limit_max_ligands no\n')
             fid.write('skip_molecule no\n')
             fid.write('read_mol_solvation no\n')
@@ -521,7 +527,7 @@ class DOCK(Screener):
             fid.write('use_database_filter no\n')
             fid.write('orient_ligand yes\n')
             fid.write('automated_matching yes\n')
-            fid.write(f'receptor_site_file {sph_file}\n')
+            fid.write(f'receptor_site_file {sph_file_local}\n')
             fid.write('max_orientations 1000\n')
             fid.write('critical_points no\n')
             fid.write('chemical_matching no\n')
@@ -537,7 +543,7 @@ class DOCK(Screener):
             fid.write('grid_score_rep_rad_scale 1\n')
             fid.write('grid_score_vdw_scale 1\n')
             fid.write('grid_score_es_scale 1\n')
-            fid.write(f'grid_score_grid_prefix {grid_prefix}\n')
+            fid.write(f'grid_score_grid_prefix {grid_prefix_local}\n')
 
             fid.write('multigrid_score_secondary no\n')
             fid.write('dock3.5_score_secondary no\n')

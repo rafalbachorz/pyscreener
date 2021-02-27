@@ -206,10 +206,11 @@ def prepare_mol2(receptor: str, path: str = '.') -> Optional[str]:
         the filename of the prepared mol2 file
     """
     p_rec = Path(receptor)
-    p_rec_mol2 = Path(path) / f'{p_rec.stem}_withH.mol2'
+    p_rec_mol2 = f'{p_rec.stem}_withH.mol2'
+    #p_rec_mol2 = Path(path) / f'{p_rec.stem}_withH.mol2'
     # (p_rec.with_name(f'{p_rec.stem}_withH.mol2'))
     args = ['chimera', '--nogui', '--script',
-            f'{PREP_REC} {receptor} {p_rec_mol2}']
+            f'{PREP_REC} {receptor} {Path(path) / p_rec_mol2}']
 
     ret = sp.run(args, stdout=sp.PIPE, stderr=sp.PIPE)
     try:
@@ -386,11 +387,14 @@ def prepare_box(sph_file: str,
 
 def prepare_grid(rec_mol2: str, box_file: str,
                  path: str = '.') -> Optional[str]:
-    p_rec = Path(rec_mol2)
+
+    #p_rec = Path(rec_mol2)
+    p_rec = Path(path) / rec_mol2
     p_grid_prefix = Path(path) / f'{p_rec.stem}_grid'
 
-    shutil.copy(box_file, 'tmp_box.pdb')
-    with open('grid.in', 'w') as fid:
+    p_box_local = Path(path) / 'tmp_box.pdb'
+    shutil.copy(box_file, p_box_local)
+    with open(Path(path) / 'grid.in', 'w') as fid:
         fid.write('compute_grids yes\n')
         fid.write('grid_spacing 0.4\n')
         fid.write('output_molecule no\n')
@@ -404,12 +408,13 @@ def prepare_grid(rec_mol2: str, box_file: str,
         fid.write('dielectric_factor 4.0\n')
         fid.write('bump_filter yes\n')
         fid.write('bump_overlap 0.75\n')
-        fid.write(f'receptor_file {rec_mol2}\n')
-        fid.write('box_file tmp_box.pdb\n')
+        fid.write(f'receptor_file {p_rec}\n')
+        fid.write(f'box_file {p_box_local}\n')
         fid.write(f'vdw_definition_file {VDW_DEFN_FILE}\n')
         fid.write(f'score_grid_prefix  {p_grid_prefix}\n')
     
-    ret = sp.run([GRID, '-i', 'grid.in', '-o', 'gridinfo.out'], stdout=sp.PIPE)
+    print('cwd ', os.getcwd())
+    ret = sp.run([GRID, '-i', Path(path) / 'grid.in', '-o', Path(path) / 'gridinfo.out'], stdout=sp.PIPE)
     try:
         ret.check_returncode()
     except sp.SubprocessError:
@@ -419,5 +424,5 @@ def prepare_grid(rec_mol2: str, box_file: str,
             print(f'Message: {ret.stderr.decode("utf-8")}', file=sys.stderr)
         return None
 
-    os.unlink('tmp_box.pdb')
+    os.unlink(Path(path) / 'tmp_box.pdb')
     return str(p_grid_prefix)

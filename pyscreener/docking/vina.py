@@ -175,7 +175,7 @@ class Vina(Screener):
         if rdkitOptimized:
             mol = Chem.MolFromSmiles(smi)
             mol = Chem.AddHs(mol)
-            AllChem.EmbedMolecule(mol)
+            AllChem.EmbedMolecule(mol, randomSeed=0xf00d)
             mol.GetNumConformers()
             AllChem.UFFOptimizeMolecule(mol, maxIters=3000)
             Chem.MolToMolFile(mol, 'tmptmptmp.mol')
